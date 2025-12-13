@@ -7,11 +7,11 @@ import { pluginParser } from "./helpers/pluginParser";
 import crypto from "node:crypto";
 
 import {
-  buildVirtualModuleImport,
-  buildWorkerResultFn,
   buildCreateWorker,
   buildWorkerModule,
+  buildWorkerResult,
 } from "./templates";
+import { importModule } from "./helpers/importModule";
 
 const traverse: typeof traverseModule =
   (traverseModule as any).default ?? traverseModule;
@@ -40,7 +40,7 @@ export function jsSpawnPlugin(): Plugin {
           : "/@virtual_js-spawn";
     },
 
-    transform(code, id) {
+    async transform(code, id) {
       if (!/\.(t|j)sx?$/.test(id)) return;
 
       const plugins = pluginParser(id);
@@ -102,15 +102,23 @@ export function jsSpawnPlugin(): Plugin {
             return;
           }
 
-          // Build worker module
-
           const { code: fnCode } = generate(fn);
+
+          const workerResultKey = `${VIRTUAL_PREFIX}__worker__result`;
+          const createWorkerKey = `${VIRTUAL_PREFIX}__create__worker`;
 
           const workerModule = buildWorkerModule({
             FN: t.identifier(fnCode),
           });
+          const createWorker = buildCreateWorker({ URL: t.identifier("URL") });
+          const workerResult = buildWorkerResult({});
 
+          const { code: createWorkerSrc } = generate(createWorker);
+          const { code: workerResultSrc } = generate(workerResult);
           const { code: moduleModuleSource } = generate(workerModule);
+
+          virtualModules.set(createWorkerKey, createWorkerSrc);
+          virtualModules.set(workerResultKey, workerResultSrc);
 
           const hash = crypto
             .createHash("md5")
@@ -119,45 +127,13 @@ export function jsSpawnPlugin(): Plugin {
             .slice(0, 8);
 
           const workerKey = `${VIRTUAL_WORKER_PREFIX}__worker__src_${hash}.js`;
-
           virtualWorkers.set(workerKey, moduleModuleSource);
 
-          //
-
-          const createWorker = buildCreateWorker();
-
-          const { code: createWorkerSrc } = generate(createWorker);
-
-          virtualModules.set(
-            `${VIRTUAL_PREFIX}__create__worker`,
-            createWorkerSrc
-          );
-
           const createWorkerIdent = t.identifier(`__create__worker`);
-
-          const createWorkerImport = buildVirtualModuleImport({
-            SPECIFIER: createWorkerIdent,
-            SOURCE: `${VIRTUAL_PREFIX}__create__worker`,
-          });
-
-          const workerResult = buildWorkerResultFn();
-
-          const { code: workerResultFnSrc } = generate(workerResult);
-
-          virtualModules.set(
-            VIRTUAL_PREFIX + "__worker__result",
-            workerResultFnSrc
-          );
-
           const workerResultIdent = t.identifier("__worker__result");
 
-          const workerResultImport = buildVirtualModuleImport({
-            SPECIFIER: workerResultIdent,
-            SOURCE: VIRTUAL_PREFIX + "__worker__result",
-          });
-
-          programPath.unshiftContainer("body", createWorkerImport);
-          programPath.unshiftContainer("body", workerResultImport);
+          importModule(path, createWorkerIdent, createWorkerKey);
+          importModule(path, workerResultIdent, workerResultKey);
 
           const workerIdent = path.scope.generateUidIdentifier("worker");
 
@@ -169,18 +145,7 @@ export function jsSpawnPlugin(): Plugin {
           const creationCallExpr = t.variableDeclaration("const", [
             t.variableDeclarator(
               workerIdent,
-              t.callExpression(createWorkerIdent, [
-                t.newExpression(t.identifier("URL"), [
-                  t.stringLiteral(workerKey),
-                  t.memberExpression(
-                    t.metaProperty(
-                      t.identifier("import"),
-                      t.identifier("meta")
-                    ),
-                    t.identifier("url")
-                  ),
-                ]),
-              ])
+              t.callExpression(createWorkerIdent, [t.stringLiteral(workerKey)])
             ),
           ]);
 
@@ -192,10 +157,10 @@ export function jsSpawnPlugin(): Plugin {
       return generate(ast, undefined, code);
     },
     resolveId(id) {
-      if (id.startsWith(VIRTUAL_WORKER_PREFIX)) {
-        return id;
-      }
-      if (id.startsWith(VIRTUAL_PREFIX)) {
+      if (
+        id.startsWith(VIRTUAL_WORKER_PREFIX) ||
+        id.startsWith(VIRTUAL_PREFIX)
+      ) {
         return id;
       }
       return null;
@@ -207,6 +172,7 @@ export function jsSpawnPlugin(): Plugin {
       if (virtualModules.has(id)) {
         return virtualModules.get(id);
       }
+      return null;
     },
     generateBundle() {
       Array.from(virtualWorkers).forEach(([key, value]) => {

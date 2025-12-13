@@ -24,12 +24,12 @@ self.onmessage = async (event) => {
 );
 
 export const buildCreateWorker = template.program(
-  `export default function createWorker(worker) {
-    return new Worker(worker, { type: "module" });
+  `export default function createWorker(url) {
+    return new Worker(new URL(url, import.meta.url), { type: "module" });
   }`
 );
 
-export const buildWorkerResultFn = template.statement(`
+export const buildWorkerResult = template.statement(`
 export default function workerResult(worker, ...args) {
   return new Promise((resolve, reject) => {
     const onMessage = (event) => {
@@ -58,7 +58,3 @@ export default function workerResult(worker, ...args) {
     worker.postMessage({ type: "run", args });
   });
 }`);
-
-export const buildVirtualModuleImport = template.statement(
-  `import %%SPECIFIER%% from %%SOURCE%%`
-);
