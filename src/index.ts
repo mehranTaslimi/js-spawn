@@ -38,10 +38,10 @@ export type SpawnValue =
   | SpawnTransferable;
 
 export async function spawn<
-  T extends (...params: P) => any,
+  T extends (...args: P) => any,
   R extends ReturnType<T>,
   P extends SpawnValue[]
->(_fn: T, ..._params: P): Promise<R> {
+>(_fn: T, ..._args: P): Promise<R> {
   throw new Error(
     "[js-spawn] spawn() was called at runtime but the jsSpawnPlugin transform was not applied. " +
       "Did you forget to add jsSpawnPlugin() in your vite.config.ts?"

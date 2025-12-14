@@ -1,10 +1,9 @@
 import * as parser from "@babel/parser";
-import traverseModule, { Binding } from "@babel/traverse";
 import * as t from "@babel/types";
 import generateModule from "@babel/generator";
+import traverseModule, { Binding } from "@babel/traverse";
 import { pluginParser } from "./pluginParser";
 import { createUnplugin } from "unplugin";
-
 import { buildCreateWorker, buildWorkerResult } from "./templates";
 import { importModule } from "./importModule";
 import { workerToBlob } from "./workerToBlob";
@@ -16,7 +15,6 @@ const generate: typeof generateModule =
   (generateModule as any).default ?? generateModule;
 
 export const unplugin = createUnplugin(() => {
-  const spawnBindings = new Set<Binding>();
   const virtualModules = new Map<string, string>();
   const VIRTUAL_PREFIX = "/@virtual:js-spawn:/";
 
@@ -26,6 +24,8 @@ export const unplugin = createUnplugin(() => {
 
     async transform(code, id) {
       if (!/\.(t|j)sx?$/.test(id)) return;
+
+      const spawnBindings = new Set<Binding>();
 
       const plugins = pluginParser(id);
 
@@ -140,7 +140,7 @@ export const unplugin = createUnplugin(() => {
 
 export const jsSpawnVitePlugin = unplugin.vite;
 export const jsSpawnWebpackPlugin = unplugin.webpack;
-// export const jsSpawnRollupPlugin = unplugin.rollup;
+export const jsSpawnRollupPlugin = unplugin.rollup;
 // export const jsSpawnRolldownPlugin = unplugin.rolldown;
 // export const jsSpawnRspackPlugin = unplugin.rspack;
 // export const jsSpawnEsbuildPlugin = unplugin.esbuild;
