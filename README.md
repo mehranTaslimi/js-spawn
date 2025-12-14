@@ -8,6 +8,12 @@
 
 `js-spawn` lets you offload heavy work (hashing, parsing, image transforms, data crunching) to a Worker so the main thread stays responsive.
 
+[![npm version](https://img.shields.io/npm/v/js-spawn)](https://www.npmjs.com/package/js-spawn)
+[![npm downloads](https://img.shields.io/npm/dm/js-spawn)](https://www.npmjs.com/package/js-spawn)
+[![license](https://img.shields.io/npm/l/js-spawn)](https://github.com/mehranTaslimi/js-spawn/blob/main/LICENSE)
+[![types](https://img.shields.io/npm/types/js-spawn)](https://www.npmjs.com/package/js-spawn)
+[![node](https://img.shields.io/node/v/js-spawn)](https://www.npmjs.com/package/js-spawn)
+
 ---
 
 ## Install
