@@ -1,7 +1,7 @@
 {
   "name": "js-spawn",
   "version": "0.1.0",
-  "description": "A tiny RPC layer for Web Workers: call a function, get a Promise back. Ships with bundler integrations (via unplugin) to handle Worker entry generation across modern toolchains.",
+  "description": "Run functions in Web Workers with spawn(fn, ...args) and get a Promise back.",
   "license": "MIT",
   "author": "Mehran Taslimi",
   "repository": {
