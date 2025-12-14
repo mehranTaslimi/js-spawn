@@ -24,19 +24,35 @@ self.onmessage = async (event) => {
 );
 
 export const buildCreateWorker = template.program(
-  `export default function createWorker(url) {
-    return new Worker(new URL(url, import.meta.url), { type: "module" });
+  `export default function createWorker() {
+    const blob = new Blob([BLOB], { type: "text/javascript" });
+    const url = URL.createObjectURL(blob);
+    const worker = new Worker(url, { type: "module" });
+
+    let destroyed = false;
+
+    const destroy = () => {
+      if (destroyed) return;
+      destroyed = true;
+      worker.onmessage = null;
+      worker.onerror = null;
+      worker.onmessageerror = null;
+      worker.terminate();
+      URL.revokeObjectURL(url);
+    };
+
+    return {worker, destroy};
   }`
 );
 
 export const buildWorkerResult = template.statement(`
-export default function workerResult(worker, ...args) {
+export default function workerResult({worker, destroy}, ...args) {
   return new Promise((resolve, reject) => {
     const onMessage = (event) => {
       const data = event.data;
       worker.removeEventListener("message", onMessage);
       worker.removeEventListener("error", onError);
-      worker.terminate();
+      destroy();
 
       if (data.ok) {
         resolve(data.result);
@@ -48,7 +64,7 @@ export default function workerResult(worker, ...args) {
     const onError = (err) => {
       worker.removeEventListener("message", onMessage);
       worker.removeEventListener("error", onError);
-      worker.terminate();
+      destroy();
       reject(err.error || err);
     };
 

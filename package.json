@@ -1,9 +1,31 @@
 {
   "name": "js-spawn",
   "version": "0.1.0",
-  "description": "",
-  "license": "ISC",
-  "author": "",
+  "description": "A tiny RPC layer for Web Workers: call a function, get a Promise back. Ships with bundler integrations (via unplugin) to handle Worker entry generation across modern toolchains.",
+  "license": "MIT",
+  "author": "Mehran Taslimi",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mehranTaslimi/js-spawn.git"
+  },
+  "homepage": "https://github.com/mehranTaslimi/js-spawn#readme",
+  "bugs": {
+    "url": "https://github.com/mehranTaslimi/js-spawn/issues"
+  },
+  "keywords": [
+    "worker",
+    "web-worker",
+    "rpc",
+    "unplugin",
+    "vite",
+    "rollup",
+    "webpack",
+    "esbuild"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20"
+  },
   "main": "./dist/index.cjs",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
@@ -14,26 +36,54 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs",
-      "require": "./dist/index.cjs"
+      "require": "./dist/index.cjs",
+      "default": "./dist/index.mjs"
     },
-    "./vite": {
-      "types": "./dist/vite.d.ts",
-      "import": "./dist/vite.mjs",
-      "require": "./dist/vite.cjs"
-    }
+    "./plugin": {
+      "types": "./dist/plugin.d.ts",
+      "import": "./dist/plugin.mjs",
+      "require": "./dist/plugin.cjs",
+      "default": "./dist/plugin.mjs"
+    },
+    "./package.json": "./package.json"
   },
   "scripts": {
-    "build": "tsup"
+    "build": "tsup",
+    "prepublishOnly": "npm run build"
   },
   "peerDependencies": {
-    "vite": "^5 || ^6 || ^7"
+    "esbuild": "*",
+    "rollup": "^3.0.0 || ^4.0.0",
+    "vite": ">=3.0.0",
+    "webpack": "^4.0.0 || ^5.0.0"
   },
-  "devDependencies": {
+  "peerDependenciesMeta": {
+    "esbuild": {
+      "optional": true
+    },
+    "rollup": {
+      "optional": true
+    },
+    "vite": {
+      "optional": true
+    },
+    "webpack": {
+      "optional": true
+    }
+  },
+  "dependencies": {
     "@babel/core": "^7.28.5",
     "@babel/generator": "^7.28.5",
     "@babel/parser": "^7.28.5",
+    "@babel/preset-typescript": "^7.28.5",
     "@babel/template": "^7.27.2",
     "@babel/traverse": "^7.28.5",
+    "@babel/types": "^7.28.5",
+    "terser": "^5.44.1",
+    "unplugin": "^2.3.11"
+  },
+  "devDependencies": {
+    "@types/babel__core": "^7.20.5",
     "@types/babel__generator": "^7.27.0",
     "@types/babel__template": "^7.4.4",
     "@types/babel__traverse": "^7.28.0",

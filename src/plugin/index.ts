@@ -1,17 +1,13 @@
-import { ResolvedConfig, type Plugin } from "vite";
 import * as parser from "@babel/parser";
-import traverseModule, { Binding, NodePath } from "@babel/traverse";
+import traverseModule, { Binding } from "@babel/traverse";
 import * as t from "@babel/types";
 import generateModule from "@babel/generator";
-import { pluginParser } from "./helpers/pluginParser";
-import crypto from "node:crypto";
+import { pluginParser } from "./pluginParser";
+import { createUnplugin } from "unplugin";
 
-import {
-  buildCreateWorker,
-  buildWorkerModule,
-  buildWorkerResult,
-} from "./templates";
-import { importModule } from "./helpers/importModule";
+import { buildCreateWorker, buildWorkerResult } from "./templates";
+import { importModule } from "./importModule";
+import { workerToBlob } from "./workerToBlob";
 
 const traverse: typeof traverseModule =
   (traverseModule as any).default ?? traverseModule;
@@ -19,26 +15,14 @@ const traverse: typeof traverseModule =
 const generate: typeof generateModule =
   (generateModule as any).default ?? generateModule;
 
-export function jsSpawnPlugin(): Plugin {
-  let config: ResolvedConfig;
+export const unplugin = createUnplugin(() => {
   const spawnBindings = new Set<Binding>();
   const virtualModules = new Map<string, string>();
-  const virtualWorkers = new Map<string, string>();
   const VIRTUAL_PREFIX = "/@virtual:js-spawn:/";
-  let VIRTUAL_WORKER_PREFIX: string;
 
   return {
     name: "js-spawn",
-    enforce: "post",
-
-    configResolved(c) {
-      config = c;
-
-      VIRTUAL_WORKER_PREFIX =
-        config.mode === "production"
-          ? "virtual_js-spawn"
-          : "/@virtual_js-spawn";
-    },
+    enforce: "pre",
 
     async transform(code, id) {
       if (!/\.(t|j)sx?$/.test(id)) return;
@@ -80,14 +64,6 @@ export function jsSpawnPlugin(): Plugin {
           const calleePath = path.get("callee");
           if (!calleePath.isIdentifier()) return;
 
-          const programPath = path.findParent((p) =>
-            p.isProgram()
-          ) as NodePath<t.Program>;
-
-          if (!programPath) {
-            return;
-          }
-
           const binding = calleePath.scope.getBinding(calleePath.node.name);
           if (!binding) return;
 
@@ -102,35 +78,26 @@ export function jsSpawnPlugin(): Plugin {
             return;
           }
 
-          const { code: fnCode } = generate(fn);
+          const { hash, out: blob } = workerToBlob(fn, id);
 
-          const workerResultKey = `${VIRTUAL_PREFIX}__worker__result`;
-          const createWorkerKey = `${VIRTUAL_PREFIX}__create__worker`;
-
-          const workerModule = buildWorkerModule({
-            FN: t.identifier(fnCode),
+          const createWorker = buildCreateWorker({
+            URL: t.identifier("URL"),
+            BLOB: t.stringLiteral(blob),
           });
-          const createWorker = buildCreateWorker({ URL: t.identifier("URL") });
+
           const workerResult = buildWorkerResult({});
 
           const { code: createWorkerSrc } = generate(createWorker);
           const { code: workerResultSrc } = generate(workerResult);
-          const { code: moduleModuleSource } = generate(workerModule);
+
+          const workerResultKey = `${VIRTUAL_PREFIX}__worker__result`;
+          const createWorkerKey = `${VIRTUAL_PREFIX}__create__worker_${hash}`;
+
+          const createWorkerIdent = t.identifier(`__create__worker_${hash}`);
+          const workerResultIdent = t.identifier("__worker__result");
 
           virtualModules.set(createWorkerKey, createWorkerSrc);
           virtualModules.set(workerResultKey, workerResultSrc);
-
-          const hash = crypto
-            .createHash("md5")
-            .update(moduleModuleSource)
-            .digest("hex")
-            .slice(0, 8);
-
-          const workerKey = `${VIRTUAL_WORKER_PREFIX}__worker__src_${hash}.js`;
-          virtualWorkers.set(workerKey, moduleModuleSource);
-
-          const createWorkerIdent = t.identifier(`__create__worker`);
-          const workerResultIdent = t.identifier("__worker__result");
 
           importModule(path, createWorkerIdent, createWorkerKey);
           importModule(path, workerResultIdent, workerResultKey);
@@ -145,7 +112,7 @@ export function jsSpawnPlugin(): Plugin {
           const creationCallExpr = t.variableDeclaration("const", [
             t.variableDeclarator(
               workerIdent,
-              t.callExpression(createWorkerIdent, [t.stringLiteral(workerKey)])
+              t.callExpression(createWorkerIdent, [])
             ),
           ]);
 
@@ -157,31 +124,26 @@ export function jsSpawnPlugin(): Plugin {
       return generate(ast, undefined, code);
     },
     resolveId(id) {
-      if (
-        id.startsWith(VIRTUAL_WORKER_PREFIX) ||
-        id.startsWith(VIRTUAL_PREFIX)
-      ) {
+      if (id.startsWith(VIRTUAL_PREFIX)) {
         return id;
       }
       return null;
     },
     load(id) {
-      if (id.startsWith(VIRTUAL_WORKER_PREFIX)) {
-        return virtualWorkers.get(id);
-      }
       if (virtualModules.has(id)) {
         return virtualModules.get(id);
       }
       return null;
     },
-    generateBundle() {
-      Array.from(virtualWorkers).forEach(([key, value]) => {
-        this.emitFile({
-          type: "asset",
-          fileName: `${config.build.assetsDir}/${key}`,
-          source: value,
-        });
-      });
-    },
   };
-}
+});
+
+export const jsSpawnVitePlugin = unplugin.vite;
+export const jsSpawnWebpackPlugin = unplugin.webpack;
+// export const jsSpawnRollupPlugin = unplugin.rollup;
+// export const jsSpawnRolldownPlugin = unplugin.rolldown;
+// export const jsSpawnRspackPlugin = unplugin.rspack;
+// export const jsSpawnEsbuildPlugin = unplugin.esbuild;
+// export const jsSpawnFarmPlugin = unplugin.farm;
+
+export default unplugin;

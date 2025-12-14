@@ -3,28 +3,24 @@ import { defineConfig } from "tsup";
 export default defineConfig({
   entry: {
     index: "src/index.ts",
-    vite: "src/vite/index.ts",
+    plugin: "src/plugin/index.ts",
   },
-  format: ["esm", "cjs"],
+  format: ["cjs", "esm"],
   dts: true,
-  sourcemap: true,
   clean: true,
   splitting: false,
-  treeshake: true,
-  target: "es2020",
-  platform: "neutral",
+  shims: true,
   external: [
-    "vite",
+    "terser",
+    "unplugin",
+    "@babel/core",
     "@babel/types",
+    "@babel/generator",
     "@babel/parser",
     "@babel/template",
     "@babel/traverse",
-    "@babel/generator",
   ],
-  outDir: "dist",
   outExtension({ format }) {
-    return {
-      js: format === "esm" ? ".mjs" : ".cjs",
-    };
+    return { js: format === "esm" ? ".mjs" : ".cjs" };
   },
 });
