@@ -43,7 +43,11 @@ export async function spawn<
   P extends SpawnValue[]
 >(_fn: T, ..._args: P): Promise<R> {
   throw new Error(
-    "[js-spawn] spawn() was called at runtime but the jsSpawnPlugin transform was not applied. " +
-      "Did you forget to add jsSpawnPlugin() in your vite.config.ts?"
+    "[js-spawn] spawn() was called at runtime, but the js-spawn transform was not applied. " +
+      "This usually means the bundler plugin is missing or not running for this file. " +
+      "Add the plugin for your toolchain and restart the dev server/build:\n" +
+      "  • Vite:    import jsSpawn from 'js-spawn/plugin'; plugins: [jsSpawn()]\n" +
+      "  • Rollup:  import jsSpawn from 'js-spawn/plugin'; plugins: [jsSpawn()]\n" +
+      "  • Webpack: const jsSpawn = require('js-spawn/plugin').default; plugins: [jsSpawn()]"
   );
 }
