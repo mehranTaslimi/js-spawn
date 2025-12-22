@@ -1,37 +1,40 @@
-import * as parser from "@babel/parser";
-import * as t from "@babel/types";
-import generateModule from "@babel/generator";
-import traverseModule from "@babel/traverse";
-import { pluginParser } from "./pluginParser";
-import { createUnplugin } from "unplugin";
-import { buildSpawnModule } from "./templates";
-import { importModule } from "./importModule";
-import { generateWorkerModule } from "./generateWorkerModule";
-import { findSpawnBindings } from "./findSpawnBindings";
+import * as parser from '@babel/parser';
+import _traverse from '@babel/traverse';
+import * as t from '@babel/types';
+import { createUnplugin } from 'unplugin';
+import { type ResolvedConfig } from 'vite';
 
-const traverse: typeof traverseModule =
-  (traverseModule as any).default ?? traverseModule;
+import { findSpawnBindings } from './findSpawnBindings';
+import generate from './generate';
+import { generateWorkerModule } from './generateWorkerModule';
+import { importModule } from './importModule';
+import { pluginParser } from './pluginParser';
+import { buildSpawnModule } from './templates';
+import traverse from './traverse';
 
-const generate: typeof generateModule =
-  (generateModule as any).default ?? generateModule;
+interface GlobalConfig {
+  vite: ResolvedConfig | null;
+}
 
 export const unplugin = createUnplugin(() => {
+  const globalConfig: GlobalConfig = {
+    vite: null,
+  };
   const emittedWorkers = new Set<string>();
   const virtualModules = new Map<string, string>();
   let VIRTUAL_PREFIX!: string;
   let VIRTUAL_WORKER_PREFIX!: string;
-  let config!: any;
 
   return {
-    name: "js-spawn",
-    enforce: "pre",
+    name: 'js-spawn',
+    enforce: 'pre',
 
-    async transform(code, id) {
+    transform(code, id) {
       if (!/\.(t|j)sx?$/.test(id)) return;
       const plugins = pluginParser(id);
 
       const ast = parser.parse(code, {
-        sourceType: "module",
+        sourceType: 'module',
         plugins,
       });
 
@@ -40,7 +43,7 @@ export const unplugin = createUnplugin(() => {
 
       traverse(ast, {
         CallExpression(path) {
-          const calleePath = path.get("callee");
+          const calleePath = path.get('callee');
           if (!calleePath.isIdentifier()) return;
 
           const binding = calleePath.scope.getBinding(calleePath.node.name);
@@ -48,7 +51,7 @@ export const unplugin = createUnplugin(() => {
 
           if (!spawnBindings.has(binding)) return;
 
-          const [fnPath] = path.get("arguments");
+          const [fnPath] = path.get('arguments');
 
           if (
             !fnPath.node ||
@@ -59,7 +62,7 @@ export const unplugin = createUnplugin(() => {
           }
 
           const spawnModule = buildSpawnModule({
-            URL: t.identifier("URL"),
+            URL: t.identifier('URL'),
           });
 
           const {
@@ -71,7 +74,7 @@ export const unplugin = createUnplugin(() => {
 
           const workerModuleKey = `${VIRTUAL_WORKER_PREFIX}__worker__${workerHash}.js`;
           const spawnModuleKey = `${VIRTUAL_PREFIX}__spawn`;
-          const spawnModuleIdent = t.identifier("__Spawn");
+          const spawnModuleIdent = t.identifier('__Spawn');
 
           virtualModules
             .set(workerModuleKey, workerModuleSrc)
@@ -79,9 +82,9 @@ export const unplugin = createUnplugin(() => {
 
           importModule(path, spawnModuleIdent, spawnModuleKey);
 
-          const spawnIdent = path.scope.generateUidIdentifier("spawn");
+          const spawnIdent = path.scope.generateUidIdentifier('spawn');
 
-          const spawnDecl = t.variableDeclaration("const", [
+          const spawnDecl = t.variableDeclaration('const', [
             t.variableDeclarator(
               spawnIdent,
               t.newExpression(spawnModuleIdent, [
@@ -91,7 +94,7 @@ export const unplugin = createUnplugin(() => {
           ]);
 
           const getSpawnResultDecl = t.callExpression(
-            t.memberExpression(spawnIdent, t.identifier("run")),
+            t.memberExpression(spawnIdent, t.identifier('run')),
             [capturedVars]
           );
 
@@ -113,25 +116,24 @@ export const unplugin = createUnplugin(() => {
       }
     },
     vite: {
-      configResolved(viteConfig: any) {
-        console.log(viteConfig);
-        config = viteConfig;
-        VIRTUAL_PREFIX = "/@virtual:js-spawn:/";
+      configResolved(config) {
+        globalConfig.vite = config;
+
+        VIRTUAL_PREFIX = '/@virtual:js-spawn:/';
         VIRTUAL_WORKER_PREFIX =
-          viteConfig.mode === "development"
-            ? "/@virtual:js-spawn:/"
-            : "virtual__js-spawn";
+          config.mode === 'development'
+            ? '/@virtual:js-spawn:/'
+            : 'virtual__js-spawn';
       },
       moduleParsed() {
         Array.from(virtualModules)
-          .filter(([id]) => id.endsWith(".js"))
+          .filter(([id]) => id.endsWith('.js'))
           .forEach(([id]) => {
             if (emittedWorkers.has(id)) return;
             emittedWorkers.add(id);
-
             this.emitFile({
-              type: "chunk",
-              fileName: `${config.build.assetsDir}/${id}`,
+              type: 'chunk',
+              fileName: `${globalConfig.vite?.build.assetsDir}/${id}`,
               id,
             });
           });

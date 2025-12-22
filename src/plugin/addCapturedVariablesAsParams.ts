@@ -1,4 +1,4 @@
-import * as t from "@babel/types";
+import * as t from '@babel/types';
 
 export const addCapturedVariablesAsParams = (capturedVars: Set<string>) => {
   const varNames = Array.from(capturedVars).sort();

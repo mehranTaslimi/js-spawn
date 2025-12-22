@@ -1,10 +1,10 @@
-import * as t from "@babel/types";
-import { NodePath } from "@babel/core";
+import type { NodePath } from '@babel/core';
+import * as t from '@babel/types';
 
 export type ModuleRef =
-  | { kind: "default"; local: string; source: string }
-  | { kind: "named"; local: string; imported: string; source: string }
-  | { kind: "namespace"; local: string; source: string };
+  | { kind: 'default'; local: string; source: string }
+  | { kind: 'named'; local: string; imported: string; source: string }
+  | { kind: 'namespace'; local: string; source: string };
 
 export const captureModulesAndVars = (
   fnPath: NodePath<t.ArrowFunctionExpression> | NodePath<t.FunctionExpression>
@@ -25,7 +25,7 @@ export const captureModulesAndVars = (
       if (binding.path.isImportDefaultSpecifier()) {
         const importDecl = binding.path.parentPath.node as t.ImportDeclaration;
         capturedModules.set(name, {
-          kind: "default",
+          kind: 'default',
           local: name,
           source: importDecl.source.value,
         });
@@ -35,7 +35,7 @@ export const captureModulesAndVars = (
       if (binding.path.isImportNamespaceSpecifier()) {
         const importDecl = binding.path.parentPath.node as t.ImportDeclaration;
         capturedModules.set(name, {
-          kind: "namespace",
+          kind: 'namespace',
           local: name,
           source: importDecl.source.value,
         });
@@ -50,7 +50,7 @@ export const captureModulesAndVars = (
           : importedNode.value;
 
         capturedModules.set(name, {
-          kind: "named",
+          kind: 'named',
           local: name,
           imported,
           source: importDecl.source.value,
@@ -73,7 +73,7 @@ export const captureModulesAndVars = (
       }
 
       if (binding.path.isVariableDeclarator()) {
-        const init = binding.path.get("init");
+        const init = binding.path.get('init');
 
         if (init.isFunctionExpression() || init.isArrowFunctionExpression()) {
           throw new Error(
@@ -86,7 +86,7 @@ export const captureModulesAndVars = (
         return;
       }
 
-      if (binding.kind === "param" || binding.kind === "local") {
+      if (binding.kind === 'param' || binding.kind === 'local') {
         capturedVars.add(name);
       }
     },

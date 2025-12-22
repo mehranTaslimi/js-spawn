@@ -1,24 +1,23 @@
-import * as t from "@babel/types";
-import { buildWorkerModule } from "./templates";
-import generateModule from "@babel/generator";
-import { NodePath } from "@babel/core";
-import { transformSync } from "@babel/core";
-import crypto from "node:crypto";
-import { createImportsFromCapturedModules } from "./createImportsFromCapturedModules";
-import { addCapturedVariablesAsParams } from "./addCapturedVariablesAsParams";
-import presetTypescript from "@babel/preset-typescript";
-import { captureModulesAndVars } from "./captureModulesAndVars";
+import crypto from 'node:crypto';
 
-const generate: typeof generateModule =
-  (generateModule as any).default ?? generateModule;
+import { transformSync } from '@babel/core';
+import type { NodePath } from '@babel/core';
+import presetTypescript from '@babel/preset-typescript';
+import * as t from '@babel/types';
+
+import { addCapturedVariablesAsParams } from './addCapturedVariablesAsParams';
+import { captureModulesAndVars } from './captureModulesAndVars';
+import { createImportsFromCapturedModules } from './createImportsFromCapturedModules';
+import generate from './generate';
+import { buildWorkerModule } from './templates';
 
 const isTsFile = (id: string): boolean => {
   const clean = id.split(/[?#]/, 1)[0].toLowerCase();
   return (
-    clean.endsWith(".ts") ||
-    clean.endsWith(".tsx") ||
-    clean.endsWith(".mts") ||
-    clean.endsWith(".cts")
+    clean.endsWith('.ts') ||
+    clean.endsWith('.tsx') ||
+    clean.endsWith('.mts') ||
+    clean.endsWith('.cts')
   );
 };
 
@@ -39,10 +38,10 @@ const transformTypeScriptToJavaScript = (
         },
       ],
     ],
-    sourceType: "module",
+    sourceType: 'module',
   });
 
-  return result?.code || code;
+  return result?.code ?? code;
 };
 
 export const generateWorkerModule = (
@@ -59,7 +58,7 @@ export const generateWorkerModule = (
   let { code: fnCode } = generate(fnPath.node);
 
   if (isTsFile(sourceFileId)) {
-    const isTSX = sourceFileId.toLowerCase().endsWith(".tsx");
+    const isTSX = sourceFileId.toLowerCase().endsWith('.tsx');
     fnCode = transformTypeScriptToJavaScript(fnCode, isTSX);
   }
 
@@ -72,9 +71,9 @@ export const generateWorkerModule = (
   const { code: workerModuleCode } = generate(workerModule);
 
   const hash = crypto
-    .createHash("md5")
+    .createHash('md5')
     .update(workerModuleCode)
-    .digest("hex")
+    .digest('hex')
     .slice(0, 8);
 
   return {

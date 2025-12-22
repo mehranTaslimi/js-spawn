@@ -1,5 +1,6 @@
-import * as t from "@babel/types";
-import { ModuleRef } from "./captureModulesAndVars";
+import * as t from '@babel/types';
+
+import type { ModuleRef } from './captureModulesAndVars';
 
 export const createImportsFromCapturedModules = (
   capturedModules: Map<string, ModuleRef>
@@ -28,11 +29,11 @@ export const createImportsFromCapturedModules = (
 
     for (const ref of refs) {
       switch (ref.kind) {
-        case "default": {
+        case 'default': {
           specifiers.push(t.importDefaultSpecifier(t.identifier(ref.local)));
           break;
         }
-        case "named": {
+        case 'named': {
           specifiers.push(
             t.importSpecifier(
               t.identifier(ref.local),
@@ -41,7 +42,7 @@ export const createImportsFromCapturedModules = (
           );
           break;
         }
-        case "namespace": {
+        case 'namespace': {
           specifiers.push(t.importNamespaceSpecifier(t.identifier(ref.local)));
           break;
         }

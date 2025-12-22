@@ -1,4 +1,4 @@
-import template from "@babel/template";
+import template from '@babel/template';
 
 export const buildWorkerModule = template.program(`
 const reply = (msg) => self.postMessage(msg);

@@ -1,5 +1,5 @@
-import { NodePath } from "@babel/traverse";
-import * as t from "@babel/types";
+import type { NodePath } from '@babel/traverse';
+import * as t from '@babel/types';
 
 export const extractWorkerImports = (
   path: NodePath<t.CallExpression>,
@@ -11,10 +11,10 @@ export const extractWorkerImports = (
     return result;
   }
 
-  const modules: Array<{ key: string; value: string }> = [];
+  const modules: { key: string; value: string }[] = [];
 
   const modulesOption = spawnOptions.properties.find(
-    (i) => t.isObjectProperty(i) && t.isIdentifier(i.key, { name: "modules" })
+    (i) => t.isObjectProperty(i) && t.isIdentifier(i.key, { name: 'modules' })
   );
 
   if (
@@ -40,7 +40,7 @@ export const extractWorkerImports = (
     p.isProgram()
   ) as NodePath<t.Program>;
 
-  for (let module of modules) {
+  for (const module of modules) {
     const binding = programPath.scope.getBinding(module.value);
     if (!binding) {
       throw new Error(
