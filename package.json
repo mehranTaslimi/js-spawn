@@ -79,7 +79,6 @@
     "@babel/template": "^7.27.2",
     "@babel/traverse": "^7.28.5",
     "@babel/types": "^7.28.5",
-    "terser": "^5.44.1",
     "unplugin": "^2.3.11"
   },
   "devDependencies": {

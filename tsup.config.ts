@@ -15,10 +15,11 @@ export default defineConfig({
     "unplugin",
     "@babel/core",
     "@babel/types",
-    "@babel/generator",
     "@babel/parser",
     "@babel/template",
     "@babel/traverse",
+    "@babel/generator",
+    "@babel/preset-typescript",
   ],
   outExtension({ format }) {
     return { js: format === "esm" ? ".mjs" : ".cjs" };

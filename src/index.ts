@@ -1,47 +1,39 @@
-export type SpawnPrimitive =
-  | string
-  | number
-  | boolean
-  | null
-  | undefined
-  | bigint;
+type Primitive = null | undefined | boolean | number | string | bigint;
 
-export type SpawnJsonValue =
-  | SpawnPrimitive
-  | { [key: string]: SpawnJsonValue }
-  | SpawnJsonValue[];
+type TypedArray =
+  | Int8Array
+  | Uint8Array
+  | Uint8ClampedArray
+  | Int16Array
+  | Uint16Array
+  | Int32Array
+  | Uint32Array
+  | Float32Array
+  | Float64Array
+  | BigInt64Array
+  | BigUint64Array;
 
-export type SpawnBinary =
-  | ArrayBufferLike
-  | ArrayBufferView
-  | Blob
-  | File
-  | ImageData;
-
-export type SpawnObjectLike =
+export type Cloneable =
+  | void
+  | Primitive
   | Date
-  | RegExp
-  | Map<SpawnValue, SpawnValue>
-  | Set<SpawnValue>;
-
-export type SpawnTransferable =
   | ArrayBuffer
   | SharedArrayBuffer
-  | MessagePort
-  | ImageBitmap
-  | OffscreenCanvas;
+  | DataView
+  | TypedArray
+  | Cloneable[]
+  | { [key: string]: Cloneable }
+  | Map<Cloneable, Cloneable>
+  | Set<Cloneable>;
 
-export type SpawnValue =
-  | SpawnJsonValue
-  | SpawnBinary
-  | SpawnObjectLike
-  | SpawnTransferable;
+export type SpawnConfig = {};
 
-export async function spawn<
-  T extends (...args: P) => any,
-  R extends ReturnType<T>,
-  P extends SpawnValue[]
->(_fn: T, ..._args: P): Promise<R> {
+type ValidateCloneable<T> = T extends Cloneable ? T : never;
+
+export async function spawn<T extends () => Cloneable | Promise<Cloneable>>(
+  _fn: T,
+  _cfg?: SpawnConfig
+): Promise<ValidateCloneable<Awaited<ReturnType<T>>>> {
   throw new Error(
     "[js-spawn] spawn() was called at runtime, but the js-spawn transform was not applied. " +
       "This usually means the bundler plugin is missing or not running for this file. " +

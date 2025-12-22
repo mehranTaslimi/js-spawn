@@ -1,5 +1,3 @@
-import * as parser from "@babel/parser";
-
 import type { ParserOptions } from "@babel/parser";
 
 export const pluginParser = (id: string): ParserOptions["plugins"] => {
