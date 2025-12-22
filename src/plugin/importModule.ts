@@ -1,5 +1,5 @@
-import { NodePath } from "@babel/traverse";
-import * as t from "@babel/types";
+import type { NodePath } from '@babel/traverse';
+import * as t from '@babel/types';
 
 export const importModule = (
   path: NodePath<t.CallExpression>,
@@ -14,7 +14,7 @@ export const importModule = (
 
   const prevImports = new Set<string>();
 
-  for (const stmtPath of programPath.get("body")) {
+  for (const stmtPath of programPath.get('body')) {
     if (stmtPath.isImportDeclaration()) {
       prevImports.add(stmtPath.node.source.value);
     }
@@ -25,6 +25,6 @@ export const importModule = (
       [t.importDefaultSpecifier(specifier)],
       t.stringLiteral(source)
     );
-    programPath.unshiftContainer("body", newImport);
+    programPath.unshiftContainer('body', newImport);
   }
 };

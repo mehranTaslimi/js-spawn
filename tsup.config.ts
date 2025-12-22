@@ -1,26 +1,27 @@
-import { defineConfig } from "tsup";
+import { defineConfig } from 'tsup';
 
 export default defineConfig({
   entry: {
-    index: "src/index.ts",
-    plugin: "src/plugin/index.ts",
+    index: 'src/index.ts',
+    plugin: 'src/plugin/index.ts',
   },
-  format: ["cjs", "esm"],
+  format: ['cjs', 'esm'],
   dts: true,
   clean: true,
   splitting: false,
   shims: true,
   external: [
-    "terser",
-    "unplugin",
-    "@babel/core",
-    "@babel/types",
-    "@babel/generator",
-    "@babel/parser",
-    "@babel/template",
-    "@babel/traverse",
+    'terser',
+    'unplugin',
+    '@babel/core',
+    '@babel/types',
+    '@babel/parser',
+    '@babel/template',
+    '@babel/traverse',
+    '@babel/generator',
+    '@babel/preset-typescript',
   ],
   outExtension({ format }) {
-    return { js: format === "esm" ? ".mjs" : ".cjs" };
+    return { js: format === 'esm' ? '.mjs' : '.cjs' };
   },
 });

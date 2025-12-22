@@ -40,27 +40,30 @@ If you run heavy loops on the main thread, the UI freezes: scrolling stutters, t
 ### Basic example (runs in a Worker)
 
 ```ts
-import { spawn } from "js-spawn";
+import { spawn } from 'js-spawn';
 
 // ✅ This function executes in a Worker (off the main thread).
 // ✅ spawn(...) returns the final value as a Promise (data only).
-const digest = await spawn((data: Uint8Array) => {
-  let h = 2166136261; // FNV-1a-ish
-  for (let i = 0; i < data.length; i++) {
-    h ^= data[i];
-    h = Math.imul(h, 16777619);
-  }
-  return (h >>> 0).toString(16);
-}, new Uint8Array([1, 2, 3, 4]));
+const digest = await spawn(
+  (data: Uint8Array) => {
+    let h = 2166136261; // FNV-1a-ish
+    for (let i = 0; i < data.length; i++) {
+      h ^= data[i];
+      h = Math.imul(h, 16777619);
+    }
+    return (h >>> 0).toString(16);
+  },
+  new Uint8Array([1, 2, 3, 4])
+);
 
 // 👇 Back on the main thread
-console.log("Worker result:", digest);
+console.log('Worker result:', digest);
 ```
 
 ### Multiple args
 
 ```ts
-import { spawn } from "js-spawn";
+import { spawn } from 'js-spawn';
 
 const sum = await spawn((a: number, b: number) => a + b, 10, 32);
 console.log(sum); // 42
@@ -69,7 +72,7 @@ console.log(sum); // 42
 ### Async worker function
 
 ```ts
-import { spawn } from "js-spawn";
+import { spawn } from 'js-spawn';
 
 const result = await spawn(async (n: number) => {
   // runs in worker
@@ -143,10 +146,10 @@ If the worker throws, `spawn` rejects. Don’t expect perfect stacks across thre
 ```ts
 try {
   await spawn(() => {
-    throw new Error("boom");
+    throw new Error('boom');
   });
 } catch (e) {
-  console.error("Worker failed:", e);
+  console.error('Worker failed:', e);
 }
 ```
 
@@ -207,7 +210,7 @@ type SpawnValue =
 declare function spawn<
   T extends (...args: P) => any,
   R extends ReturnType<T>,
-  P extends SpawnValue[]
+  P extends SpawnValue[],
 >(fn: T, ...args: P): Promise<R>;
 ```
 
@@ -220,15 +223,15 @@ declare function spawn<
 Install is the same package, import the plugin entry:
 
 ```ts
-import jsSpawn from "js-spawn/plugin";
+import jsSpawn from 'js-spawn/plugin';
 ```
 
 ### Vite
 
 ```ts
 // vite.config.ts
-import { defineConfig } from "vite";
-import jsSpawn from "js-spawn/plugin";
+import { defineConfig } from 'vite';
+import jsSpawn from 'js-spawn/plugin';
 
 export default defineConfig({
   plugins: [jsSpawn()],
@@ -239,7 +242,7 @@ export default defineConfig({
 
 ```js
 // webpack.config.js
-const jsSpawn = require("js-spawn/plugin").default;
+const jsSpawn = require('js-spawn/plugin').default;
 
 module.exports = {
   // ...
@@ -251,7 +254,7 @@ module.exports = {
 
 ```js
 // rollup.config.js
-import jsSpawn from "js-spawn/plugin";
+import jsSpawn from 'js-spawn/plugin';
 
 export default {
   // ...
