@@ -45,10 +45,15 @@ const transformTypeScriptToJavaScript = (
 };
 
 export const generateWorkerModule = (
+  resolvedAliases: Record<string, string>,
   fnPath: NodePath<t.ArrowFunctionExpression> | NodePath<t.FunctionExpression>,
   sourceFileId: string
 ) => {
-  const { capturedModules, capturedVars } = captureModulesAndVars(fnPath);
+  const { capturedModules, capturedVars } = captureModulesAndVars(
+    sourceFileId,
+    resolvedAliases,
+    fnPath
+  );
   const importsAst = createImportsFromCapturedModules(capturedModules);
   const { objectExpression, objectPattern } =
     addCapturedVariablesAsParams(capturedVars);

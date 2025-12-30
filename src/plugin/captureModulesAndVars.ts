@@ -1,12 +1,16 @@
 import type { NodePath } from '@babel/core';
 import * as t from '@babel/types';
 
+import { resolveSourceModule } from './resolveModule';
+
 export type ModuleRef =
   | { kind: 'default'; local: string; source: string }
   | { kind: 'named'; local: string; imported: string; source: string }
   | { kind: 'namespace'; local: string; source: string };
 
 export const captureModulesAndVars = (
+  sourceFileId: string,
+  resolvedAliases: Record<string, string>,
   fnPath: NodePath<t.ArrowFunctionExpression> | NodePath<t.FunctionExpression>
 ) => {
   const capturedModules = new Map<string, ModuleRef>();
@@ -27,7 +31,11 @@ export const captureModulesAndVars = (
         capturedModules.set(name, {
           kind: 'default',
           local: name,
-          source: importDecl.source.value,
+          source: resolveSourceModule(
+            resolvedAliases,
+            importDecl.source.value,
+            sourceFileId
+          ),
         });
         return;
       }
@@ -37,7 +45,11 @@ export const captureModulesAndVars = (
         capturedModules.set(name, {
           kind: 'namespace',
           local: name,
-          source: importDecl.source.value,
+          source: resolveSourceModule(
+            resolvedAliases,
+            importDecl.source.value,
+            sourceFileId
+          ),
         });
         return;
       }
@@ -53,7 +65,11 @@ export const captureModulesAndVars = (
           kind: 'named',
           local: name,
           imported,
-          source: importDecl.source.value,
+          source: resolveSourceModule(
+            resolvedAliases,
+            importDecl.source.value,
+            sourceFileId
+          ),
         });
         return;
       }

@@ -9,6 +9,7 @@ import generate from './generate';
 import { generateWorkerModule } from './generateWorkerModule';
 import { importModule } from './importModule';
 import { pluginParser } from './pluginParser';
+import { loadTsConfigAliases, normalizeAliases } from './resolveModule';
 import { buildSpawnModule } from './templates';
 import traverse from './traverse';
 
@@ -20,6 +21,7 @@ export const unplugin = createUnplugin(() => {
   const globalConfig: GlobalConfig = {
     vite: null,
   };
+  const resolvedAliases: Record<string, string> = {};
   const emittedWorkers = new Set<string>();
   const virtualModules = new Map<string, string>();
   let VIRTUAL_PREFIX!: string;
@@ -69,7 +71,7 @@ export const unplugin = createUnplugin(() => {
             hash: workerHash,
             out: workerModuleSrc,
             capturedVars,
-          } = generateWorkerModule(fnPath, id);
+          } = generateWorkerModule(resolvedAliases, fnPath, id);
           const { code: spawnModuleSrc } = generate(spawnModule);
 
           const workerModuleKey = `${VIRTUAL_WORKER_PREFIX}__worker__${workerHash}.js`;
@@ -118,6 +120,11 @@ export const unplugin = createUnplugin(() => {
     vite: {
       configResolved(config) {
         globalConfig.vite = config;
+
+        const viteAliases = normalizeAliases(config.resolve.alias);
+        const tsconfigAliases = loadTsConfigAliases(config.root);
+
+        Object.assign(resolvedAliases, viteAliases, tsconfigAliases);
 
         VIRTUAL_PREFIX = '/@virtual:js-spawn:/';
         VIRTUAL_WORKER_PREFIX =
