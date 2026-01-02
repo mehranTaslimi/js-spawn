@@ -150,7 +150,4 @@ export const unplugin = createUnplugin(() => {
 });
 
 export const jsSpawnVitePlugin = unplugin.vite;
-export const jsSpawnWebpackPlugin = unplugin.webpack;
-export const jsSpawnRollupPlugin = unplugin.rollup;
-
 export default unplugin;
