@@ -1,67 +1,51 @@
-import * as parser from "@babel/parser";
-import * as t from "@babel/types";
-import generateModule from "@babel/generator";
-import traverseModule, { Binding } from "@babel/traverse";
-import { pluginParser } from "./pluginParser";
-import { createUnplugin } from "unplugin";
-import { buildCreateWorker, buildWorkerResult } from "./templates";
-import { importModule } from "./importModule";
-import { workerToBlob } from "./workerToBlob";
+import * as parser from '@babel/parser';
+import _traverse from '@babel/traverse';
+import * as t from '@babel/types';
+import { createUnplugin } from 'unplugin';
+import { type ResolvedConfig } from 'vite';
 
-const traverse: typeof traverseModule =
-  (traverseModule as any).default ?? traverseModule;
+import { findSpawnBindings } from './findSpawnBindings';
+import generate from './generate';
+import { generateWorkerModule } from './generateWorkerModule';
+import { importModule } from './importModule';
+import { pluginParser } from './pluginParser';
+import { loadTsConfigAliases, normalizeAliases } from './resolveModule';
+import { buildSpawnModule } from './templates';
+import traverse from './traverse';
 
-const generate: typeof generateModule =
-  (generateModule as any).default ?? generateModule;
+interface GlobalConfig {
+  vite: ResolvedConfig | null;
+}
 
 export const unplugin = createUnplugin(() => {
+  const globalConfig: GlobalConfig = {
+    vite: null,
+  };
+  const resolvedAliases: Record<string, string> = {};
+  const emittedWorkers = new Set<string>();
   const virtualModules = new Map<string, string>();
-  const VIRTUAL_PREFIX = "/@virtual:js-spawn:/";
+  let VIRTUAL_PREFIX!: string;
+  let VIRTUAL_WORKER_PREFIX!: string;
 
   return {
-    name: "js-spawn",
-    enforce: "pre",
+    name: 'js-spawn',
+    enforce: 'pre',
 
-    async transform(code, id) {
+    transform(code, id) {
       if (!/\.(t|j)sx?$/.test(id)) return;
-
-      const spawnBindings = new Set<Binding>();
-
       const plugins = pluginParser(id);
 
       const ast = parser.parse(code, {
-        sourceType: "module",
+        sourceType: 'module',
         plugins,
       });
 
-      traverse(ast, {
-        ImportDeclaration(path) {
-          if (path.node.source.value !== "js-spawn") return;
-
-          for (const spec of path.node.specifiers) {
-            if (
-              t.isImportSpecifier(spec) &&
-              t.isIdentifier(spec.imported, { name: "spawn" })
-            ) {
-              const binding = path.scope.getBinding(spec.local.name);
-              if (binding) spawnBindings.add(binding);
-            }
-
-            if (t.isImportDefaultSpecifier(spec)) {
-              const binding = path.scope.getBinding(spec.local.name);
-              if (binding) spawnBindings.add(binding);
-            }
-          }
-        },
-      });
-
-      if (spawnBindings.size === 0) {
-        return code;
-      }
+      const spawnBindings = findSpawnBindings(ast);
+      if (!spawnBindings.size) return;
 
       traverse(ast, {
         CallExpression(path) {
-          const calleePath = path.get("callee");
+          const calleePath = path.get('callee');
           if (!calleePath.isIdentifier()) return;
 
           const binding = calleePath.scope.getBinding(calleePath.node.name);
@@ -69,81 +53,101 @@ export const unplugin = createUnplugin(() => {
 
           if (!spawnBindings.has(binding)) return;
 
-          const [fn, ...args] = path.node.arguments;
+          const [fnPath] = path.get('arguments');
 
           if (
-            !fn ||
-            (!t.isArrowFunctionExpression(fn) && !t.isFunctionExpression(fn))
+            !fnPath.node ||
+            (!fnPath.isArrowFunctionExpression() &&
+              !fnPath.isFunctionExpression())
           ) {
             return;
           }
 
-          const { hash, out: blob } = workerToBlob(fn, id);
-
-          const createWorker = buildCreateWorker({
-            URL: t.identifier("URL"),
-            BLOB: t.stringLiteral(blob),
+          const spawnModule = buildSpawnModule({
+            URL: t.identifier('URL'),
           });
 
-          const workerResult = buildWorkerResult({});
+          const {
+            hash: workerHash,
+            out: workerModuleSrc,
+            capturedVars,
+          } = generateWorkerModule(resolvedAliases, fnPath, id);
+          const { code: spawnModuleSrc } = generate(spawnModule);
 
-          const { code: createWorkerSrc } = generate(createWorker);
-          const { code: workerResultSrc } = generate(workerResult);
+          const workerModuleKey = `${VIRTUAL_WORKER_PREFIX}__worker__${workerHash}.js`;
+          const spawnModuleKey = `${VIRTUAL_PREFIX}__spawn`;
+          const spawnModuleIdent = t.identifier('__Spawn');
 
-          const workerResultKey = `${VIRTUAL_PREFIX}__worker__result`;
-          const createWorkerKey = `${VIRTUAL_PREFIX}__create__worker_${hash}`;
+          virtualModules
+            .set(workerModuleKey, workerModuleSrc)
+            .set(spawnModuleKey, spawnModuleSrc);
 
-          const createWorkerIdent = t.identifier(`__create__worker_${hash}`);
-          const workerResultIdent = t.identifier("__worker__result");
+          importModule(path, spawnModuleIdent, spawnModuleKey);
 
-          virtualModules.set(createWorkerKey, createWorkerSrc);
-          virtualModules.set(workerResultKey, workerResultSrc);
+          const spawnIdent = path.scope.generateUidIdentifier('spawn');
 
-          importModule(path, createWorkerIdent, createWorkerKey);
-          importModule(path, workerResultIdent, workerResultKey);
-
-          const workerIdent = path.scope.generateUidIdentifier("worker");
-
-          const resultCallExpr = t.callExpression(workerResultIdent, [
-            workerIdent,
-            ...args,
-          ]);
-
-          const creationCallExpr = t.variableDeclaration("const", [
+          const spawnDecl = t.variableDeclaration('const', [
             t.variableDeclarator(
-              workerIdent,
-              t.callExpression(createWorkerIdent, [])
+              spawnIdent,
+              t.newExpression(spawnModuleIdent, [
+                t.stringLiteral(workerModuleKey),
+              ])
             ),
           ]);
 
-          path.getStatementParent()?.insertBefore(creationCallExpr);
-          path.replaceWith(resultCallExpr);
+          const getSpawnResultDecl = t.callExpression(
+            t.memberExpression(spawnIdent, t.identifier('run')),
+            [capturedVars]
+          );
+
+          path.getStatementParent()?.insertBefore(spawnDecl);
+          path.replaceWith(getSpawnResultDecl);
         },
       });
 
       return generate(ast, undefined, code);
     },
     resolveId(id) {
-      if (id.startsWith(VIRTUAL_PREFIX)) {
+      if (virtualModules.has(id)) {
         return id;
       }
-      return null;
     },
     load(id) {
       if (virtualModules.has(id)) {
         return virtualModules.get(id);
       }
-      return null;
+    },
+    vite: {
+      configResolved(config) {
+        globalConfig.vite = config;
+
+        const viteAliases = normalizeAliases(config.resolve.alias);
+        const tsconfigAliases = loadTsConfigAliases(config.root);
+
+        Object.assign(resolvedAliases, viteAliases, tsconfigAliases);
+
+        VIRTUAL_PREFIX = '/@virtual:js-spawn:/';
+        VIRTUAL_WORKER_PREFIX =
+          config.mode === 'development'
+            ? '/@virtual:js-spawn:/'
+            : 'virtual__js-spawn';
+      },
+      moduleParsed() {
+        Array.from(virtualModules)
+          .filter(([id]) => id.endsWith('.js'))
+          .forEach(([id]) => {
+            if (emittedWorkers.has(id)) return;
+            emittedWorkers.add(id);
+            this.emitFile({
+              type: 'chunk',
+              fileName: `${globalConfig.vite?.build.assetsDir}/${id}`,
+              id,
+            });
+          });
+      },
     },
   };
 });
 
 export const jsSpawnVitePlugin = unplugin.vite;
-export const jsSpawnWebpackPlugin = unplugin.webpack;
-export const jsSpawnRollupPlugin = unplugin.rollup;
-// export const jsSpawnRolldownPlugin = unplugin.rolldown;
-// export const jsSpawnRspackPlugin = unplugin.rspack;
-// export const jsSpawnEsbuildPlugin = unplugin.esbuild;
-// export const jsSpawnFarmPlugin = unplugin.farm;
-
 export default unplugin;

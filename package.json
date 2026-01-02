@@ -4,6 +4,7 @@
   "description": "Run functions in Web Workers with spawn(fn, ...args) and get a Promise back.",
   "license": "MIT",
   "author": "Mehran Taslimi",
+  "type": "module",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/mehranTaslimi/js-spawn.git"
@@ -49,7 +50,11 @@
   },
   "scripts": {
     "build": "tsup",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write \"**/*.{ts,js,mjs,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,js,mjs,json,md}\""
   },
   "peerDependencies": {
     "esbuild": "*",
@@ -79,16 +84,22 @@
     "@babel/template": "^7.27.2",
     "@babel/traverse": "^7.28.5",
     "@babel/types": "^7.28.5",
-    "terser": "^5.44.1",
     "unplugin": "^2.3.11"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.2",
     "@types/babel__core": "^7.20.5",
     "@types/babel__generator": "^7.27.0",
     "@types/babel__template": "^7.4.4",
     "@types/babel__traverse": "^7.28.0",
     "@types/node": "^25.0.1",
+    "eslint": "^9.39.2",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-import": "^2.32.0",
+    "prettier": "^3.7.4",
     "tsup": "^8.5.1",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.50.1",
+    "vite": "^7.3.0"
   }
 }
